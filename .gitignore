@@ -1,6 +1,10 @@
 #### joe made this: http://goel.io/joe
 
 data/
+dataset/
+checkpoint/
+runs/
+wandb/
 OSU/
 .mypy_cache
 .vscode
@@ -8,6 +12,7 @@ OSU/
 *.wav
 *.mp3
 *.pth.tar
+dataset.zip
 env*/
 
 #####=== Python ===#####
