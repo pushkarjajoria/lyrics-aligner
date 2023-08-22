@@ -1,6 +1,3 @@
-"""
-Generates .txt-files with phoneme and/or word onsets.
-"""
 import copy
 import time
 from datetime import datetime, timedelta
@@ -93,7 +90,6 @@ def accumulated_cost_numpy(score_matrix, init=None):
 
     Returns:
         dtw_matrix: accumulated score matrix
-
     """
     B, N, M = score_matrix.size()
     score_matrix = score_matrix.numpy().astype('float64')
@@ -226,7 +222,7 @@ def forward_pass(lyrics_aligner, audio, phonemes_idx):
 
 
 # Function to perform training step and return loss
-def train_step(lyrics_aligner, audio, phonemes_idx, alpha_tensor, optimizer, loss_fn):
+def compute_loss(lyrics_aligner, audio, phonemes_idx, alpha_tensor, optimizer, loss_fn):
     alpha_t_hat, scores = lyrics_aligner((audio, phonemes_idx))
     alpha_tensor = alpha_tensor.to_dense()
     alpha_tensor = alpha_tensor.permute((0, 2, 1))
@@ -237,7 +233,6 @@ def train_step(lyrics_aligner, audio, phonemes_idx, alpha_tensor, optimizer, los
     start_time = time.time()
     loss.backward()
     backward_time = time.time() - start_time
-    optimizer.step()
     return loss, scores, backward_time
 
 
@@ -283,18 +278,33 @@ def forward_sanity_test(model_checkpoint="checkpoint/base/model_parameters.pth",
 
 
 def train(args):
+    """
+    Train a model to align lyrics with audio.
+
+    Args:
+        args (object): Contains training configurations such as epochs, save steps, run name, etc.
+
+    Returns:
+        None: The function saves model checkpoints and logs metrics but doesn't return any values.
+    """
+
+    # Extract necessary parameters from args
     num_epochs = args.epochs
     save_steps = args.save_steps
-    if save_steps == 0:
-        print("Warning: Model checkpoints will not be saved untill the full training is completed. "
-              "If this is a mistake, rerun with save_steps #Number_of_steps.")
     run_name = args.run_name
-    learning_rate = 1e-5  # Define learning rate as a variable for logging
+    learning_rate = args.lr
+    accumulation_steps = args.accumulation_steps
 
+    # Warn the user if save_steps is set to 0
+    if save_steps == 0:
+        print("Warning: Model checkpoints will not be saved until the full training is completed. "
+              "If this is a mistake, rerun with save_steps #Number_of_steps.")
+
+    # Determine the device (CPU or CUDA)
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     print('Running model on {}.'.format(device))
 
-    # Init Wandb
+    # Initialize Wandb for logging and monitoring
     project_name = 'lyrics_aligner' if torch.cuda.is_available() else 'lyrics_aligner_dev_macbook'
     param_config = {
         'num_epochs': num_epochs,
@@ -302,55 +312,58 @@ def train(args):
         'learning_rate': learning_rate,
     }
     print(param_config)
-    run = wandb.init(project=project_name, name=args.run_name, config=param_config)
-    # Load model
+    run = wandb.init(project=project_name, name=run_name, config=param_config)
+
+    # Load the model and its state
     lyrics_aligner = model.InformedOpenUnmix3().to(device)
     gradient_monitor = model.GradientMonitor(lyrics_aligner)
     state_dict = torch.load('checkpoint/base/model_parameters.pth', map_location=device)
     lyrics_aligner.load_state_dict(state_dict)
 
-    # Watch the model
-    wandb.watch(lyrics_aligner, log='all')  # Log all gradients and model parameters
+    # Log model gradients and parameters to wandb
+    wandb.watch(lyrics_aligner, log='all')
 
-    # Define the baseline model for training comparison
+    # Create a copy of the model for baseline comparison
     baseline = copy.deepcopy(lyrics_aligner)
 
-    # Load dataset
+    # Load dataset and perform training/test split
     dataset_path = "dataset/"
     w2ph_dict_path = dataset_path + "word2phonemeglobal.pickle"
     w2ph_file = open(w2ph_dict_path, "rb")
     w2phoneme_dict = pickle.load(w2ph_file)
-
     full_dataset = AriaDataset(path=dataset_path, word2phoneme_dict=w2phoneme_dict, ignore_list=["casta_diva"])
-
-    # Perform the split
     train_size = max(len(full_dataset) - 1, 1)
     test_size = len(full_dataset) - train_size
     train_dataset, test_dataset = random_split(full_dataset, [train_size, test_size])
     dataloader = DataLoader(train_dataset, batch_size=1, shuffle=True)
 
-    # Loss function
+    # Set up the loss function and optimizer
     loss_fn = nn.KLDivLoss()
-
-    # Optimizer
     optimizer = Adam(lyrics_aligner.parameters(), lr=learning_rate)
 
-    # Load (phoneme -> index) dictionary
+    # Load phoneme-to-index mapping
     pickle_in = open('files/phoneme2idx.pickle', 'rb')
     phoneme2idx = pickle.load(pickle_in)
+
+    # Training loop
     steps = 0
     train_start_time = time.time()
     for epoch in range(num_epochs):
-        for name, audio, phonemes, sr, audio_duration, words, start_time, end_time, word_start_indexes, word_end_indexes, alpha_tensor in dataloader:
+        for idx, (name, audio, phonemes, sr, audio_duration, words, start_time, end_time, word_start_indexes, word_end_indexes, alpha_tensor) in enumerate(dataloader):
             print(f"Training on {name}, epoch {epoch}")
             lyrics_phoneme_idx = [phoneme2idx[ph[0]] for ph in phonemes]
             phonemes_idx = torch.tensor(lyrics_phoneme_idx, dtype=torch.float32, device=device)[None, :]
 
             # Training step
             audio, alpha_tensor = audio.to(device), alpha_tensor.to(device)
-            loss, scores, backward_time = train_step(lyrics_aligner, audio, phonemes_idx, alpha_tensor, optimizer, loss_fn)
+            loss, scores, backward_time = compute_loss(lyrics_aligner, audio, phonemes_idx, alpha_tensor, optimizer, loss_fn)
             backward_time = str(timedelta(seconds=backward_time))
             print(f"Backward pass time = {backward_time} for batch size: {audio.shape[0]}")
+
+            if (idx + 1) % accumulation_steps == 0:
+                print(f"Optimizing after {accumulation_steps} steps.")
+                optimizer.step()
+                optimizer.zero_grad()
 
             # Save checkpoint
             steps += 1
@@ -422,7 +435,6 @@ def train(args):
     print("Saving final checkpoint")
     save_checkpoint(lyrics_aligner, run_name, None, None, wandb)
 
-
     # End the wandb run
     run.finish()
 
@@ -432,6 +444,8 @@ if __name__ == "__main__":
     parser.add_argument('--epochs', type=int, default=50)
     parser.add_argument('--save_steps', type=int, default=10)
     parser.add_argument('--run_name', type=str, default=datetime.now().strftime("%m%d_%H%M"))
+    parser.add_argument('--lr', type=float, default=1e-5)
+    parser.add_argument('--accumulation_steps', type=int, default=3)
     parser.add_argument("--forward_pass_sanity", action="store_true",
                         help="Runs just a single forward pass as a sanity check.")
     args = parser.parse_args()
