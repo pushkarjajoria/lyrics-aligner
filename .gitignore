@@ -13,6 +13,7 @@ OSU/
 *.mp3
 *.pth.tar
 dataset.zip
+shell_output.txt
 env*/
 
 #####=== Python ===#####
