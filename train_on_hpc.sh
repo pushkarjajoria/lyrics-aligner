@@ -32,6 +32,7 @@ module load cuda/11.4
 
 # Set wandb to offline mode
 export WANDB_MODE=offline
+echo "Weights and bias env variable = $WANDB_MODE"
 
 # Variables to store arguments if provided
 EPOCHS_ARG=""

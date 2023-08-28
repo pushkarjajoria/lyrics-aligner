@@ -453,7 +453,7 @@ class InformedOpenUnmix3(nn.Module):
         text_idx = x[1].unsqueeze(dim=2)  # text as index sequence
         x = x[0]  # mix
 
-        x = self.transform(x)
+        x = self.transform(x) # MFCC
         nb_frames, nb_samples, nb_channels, nb_bins = x.data.shape
 
         # -------------------------------------------------------------------------------------------------------------
