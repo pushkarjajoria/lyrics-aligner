@@ -267,7 +267,7 @@ class Aria:
 
 
 class AriaDataset(Dataset):
-    def __init__(self, path, word2phoneme_dict, pickle_file='./dataset/aria_dataset.pickle', ignore_list=[]):
+    def __init__(self, path, word2phoneme_dict, pickle_file='./dataset/aria_dataset.pickle', ignore_list=None):
         """
         Create the dataset by either loading it from the pickle file if it is provided else creates one using the path.
 
@@ -298,6 +298,8 @@ class AriaDataset(Dataset):
             pickle_file (object):
             path (str): The path to the directory containing the song datasets.
         """
+        if ignore_list is None:
+            ignore_list = []
         self.ignore_list = ignore_list
         self.path = path
         self.word2phoneme_dict = word2phoneme_dict

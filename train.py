@@ -331,11 +331,15 @@ def train(args):
     w2ph_dict_path = dataset_path + "word2phonemeglobal.pickle"
     w2ph_file = open(w2ph_dict_path, "rb")
     w2phoneme_dict = pickle.load(w2ph_file)
-    full_dataset = AriaDataset(path=dataset_path, word2phoneme_dict=w2phoneme_dict, ignore_list=["casta_diva"])
+    full_dataset = AriaDataset(path=dataset_path, word2phoneme_dict=w2phoneme_dict, ignore_list=["casta_diva",
+                                                                                                 "aria_violetta_short"])
     train_size = max(len(full_dataset) - 1, 1)
     test_size = len(full_dataset) - train_size
     train_dataset, test_dataset = random_split(full_dataset, [train_size, test_size])
     dataloader = DataLoader(train_dataset, batch_size=1, shuffle=True)
+    print(f"Length of train dataset: {len(train_dataset)}. \nLength of test dataset: {len(test_dataset)}.")
+    print(f"Training dataset -> {list(map(lambda x: x[0], train_dataset))}")
+    print(f"Test dataset -> {list(map(lambda x: x[0], test_dataset))}")
 
     # Set up the loss function and optimizer
     loss_fn = nn.KLDivLoss()
