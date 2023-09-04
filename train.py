@@ -228,7 +228,7 @@ def compute_loss(lyrics_aligner, audio, phonemes_idx, alpha_tensor, optimizer, l
     alpha_tensor = alpha_tensor.permute((0, 2, 1))
     alpha_t_hat_flattened = alpha_t_hat.view(-1, alpha_t_hat.shape[-1])
     alpha_tensor_flattened = alpha_tensor.view(-1, alpha_tensor.shape[-1])
-    loss = loss_fn(torch.log(alpha_t_hat_flattened + 1e-6), alpha_tensor_flattened)
+    loss = loss_fn(alpha_t_hat_flattened, alpha_tensor_flattened)
     # Start timing
     start_time = time.time()
     loss.backward()
@@ -342,7 +342,7 @@ def train(args):
     print(f"Test dataset -> {list(map(lambda x: x[0], test_dataset))}")
 
     # Set up the loss function and optimizer
-    loss_fn = nn.KLDivLoss()
+    loss_fn = nn.BCELoss()
     optimizer = Adam(lyrics_aligner.parameters(), lr=learning_rate)
 
     # Load phoneme-to-index mapping
