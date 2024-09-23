@@ -316,7 +316,7 @@ def train(args):
 
     # Load the model and its state
     lyrics_aligner = model.InformedOpenUnmix3().to(device)
-    gradient_monitor = model.GradientMonitor(lyrics_aligner)
+    # gradient_monitor = model.GradientMonitor(lyrics_aligner)
     state_dict = torch.load('checkpoint/base/model_parameters.pth', map_location=device)
     lyrics_aligner.load_state_dict(state_dict)
 
@@ -331,11 +331,15 @@ def train(args):
     w2ph_dict_path = dataset_path + "word2phonemeglobal.pickle"
     w2ph_file = open(w2ph_dict_path, "rb")
     w2phoneme_dict = pickle.load(w2ph_file)
-    full_dataset = AriaDataset(path=dataset_path, word2phoneme_dict=w2phoneme_dict, ignore_list=["casta_diva"])
+    full_dataset = AriaDataset(path=dataset_path, word2phoneme_dict=w2phoneme_dict, ignore_list=["casta_diva",
+                                                                                                 "aria_violetta_short"])
     train_size = max(len(full_dataset) - 1, 1)
     test_size = len(full_dataset) - train_size
     train_dataset, test_dataset = random_split(full_dataset, [train_size, test_size])
     dataloader = DataLoader(train_dataset, batch_size=1, shuffle=True)
+    print(f"Length of train dataset: {len(train_dataset)}. \nLength of test dataset: {len(test_dataset)}.")
+    print(f"Training dataset -> {list(map(lambda x: x[0], train_dataset))}")
+    print(f"Test dataset -> {list(map(lambda x: x[0], test_dataset))}")
 
     # Set up the loss function and optimizer
     loss_fn = nn.KLDivLoss()
@@ -382,12 +386,12 @@ def train(args):
                 'Step': steps,
                 'Backward Pass Time': backward_time
             })
-            gradient_monitor.log_gradients()
+            # gradient_monitor.log_gradients()
 
     train_end_time = time.time()
     train_total_time = timedelta(seconds=train_end_time - train_start_time)
     print(f"Training complete in {str(train_total_time)}.")
-    gradient_monitor.close()
+    # gradient_monitor.close()
     # Comparison with baseline model on test set
     with torch.no_grad():
         print("Evaluating the model on test set")
