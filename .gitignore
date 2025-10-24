@@ -111,3 +111,5 @@ pretrained_models/
 logfiles/
 phoneme_update_logs.txt
 phoneme_update_logs2.txt
+train.sub
+train.sh
