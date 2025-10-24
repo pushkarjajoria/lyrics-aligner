@@ -1,6 +1,7 @@
+import csv
 import os
 import pickle
-from typing import List, Optional
+from typing import List, Optional, Tuple
 import textgrid
 from textgrid import TextGrid, IntervalTier
 
@@ -23,6 +24,7 @@ def get_word_tuples_from_tg(textgrid_filepath):
             text = interval.mark
             start_time = interval.minTime
             end_time = interval.maxTime
+            text = clean_words(text)
             if is_compound_word(text):
                 # Equally divide the interval for each word in the compound word
                 subdivisions = subdivide(text, start_time, end_time)
@@ -50,8 +52,8 @@ def create_labels_from_multiple_textgrid(textgrid_filepath_arr):
     for textgrid_filepath in textgrid_filepath_arr:
         part_labels = create_labels_from_textgrid(textgrid_filepath)
         final_labels += part_labels
+    final_labels = sorted(final_labels, key=lambda x: x[1])
     return final_labels
-
 
 
 def create_textgrid(word_tuples, tier_name='words'):
@@ -242,24 +244,71 @@ def create_textgrid_file_from_model_output_resume(filepath: str, ass_obj,
     print(f"Text grid file created at {filepath}")
 
 
-if __name__ == "__main__":
-    """
-    Single Textgrid file for a single folder.
-    """
-    textgrid_files = ["../dataset/casta_diva/Casta diva_Norma.TextGrid"]
-    for tg_file_path in textgrid_files:
-        aria_folder = os.path.dirname(tg_file_path)
-        labels = create_labels_from_textgrid(tg_file_path)
-        # Save labels in tsv
-        # Generate filepath based on Dataset structure.
-        filepath = aria_folder + "/labels.tsv"
-        create_tsv_file(labels, filepath)
+def collect_textgrid_files(textgrid_dir):
+    files = {}
+    datapoints_found = set()
 
-        # Creating lyrics from labels.
-        lyrics_filepath = aria_folder + "/text/song.txt"    # As per the dataset structure
-        # Save lyrics in text file as per Dataset structure.
-        list_of_words = list(map(lambda x: x[0], labels))
-        lyrics = create_lyrics_from_labels(list_of_words, lyrics_filepath)
+    # Get all immediate subdirectories (datapoint folders)
+    for entry in os.listdir(textgrid_dir):
+        entry_path = os.path.join(textgrid_dir, entry)
+        if os.path.isdir(entry_path):
+            datapoints_found.add(entry)
+
+    # Recursively find .TextGrid files
+    for root, dirs, filenames in os.walk(textgrid_dir):
+        for filename in filenames:
+            if filename.endswith(".TextGrid"):
+                full_path = os.path.join(root, filename)
+                # The top-level folder name is the first part of rel_path
+                rel_path = os.path.relpath(full_path, textgrid_dir)
+                datapoint = rel_path.split(os.sep)[0]
+
+                if datapoint not in files:
+                    files[datapoint] = []
+                files[datapoint].append(full_path)
+
+    # Report any datapoint folders without a .TextGrid
+    for datapoint in sorted(datapoints_found):
+        if datapoint not in files:
+            print(f"[ERROR] No .TextGrid file found for datapoint '{datapoint}'")
+            files[datapoint] = []
+
+    return files
+
+
+def load_labels_tsv(tsv_path):
+    labels = []
+    with open(tsv_path, 'r', encoding='utf-8') as f:
+        reader = csv.DictReader(f, delimiter='\t')
+        for row in reader:
+            try:
+                label = row['Text']
+                start = float(row['Start Time'])
+                end = float(row['End Time'])
+                labels.append((label, start, end))
+            except KeyError:
+                raise ValueError(f"Missing expected headers in {tsv_path}. Required: 'label', 'start', 'end'")
+    return labels
+
+
+# if __name__ == "__main__":
+#     """
+#     Single Textgrid file for a single folder.
+#     """
+#     textgrid_files = ["../dataset/casta_diva/Casta diva_Norma.TextGrid"]
+#     for tg_file_path in textgrid_files:
+#         aria_folder = os.path.dirname(tg_file_path)
+#         labels = create_labels_from_textgrid(tg_file_path)
+#         # Save labels in tsv
+#         # Generate filepath based on Dataset structure.
+#         filepath = aria_folder + "/labels.tsv"
+#         create_tsv_file(labels, filepath)
+#
+#         # Creating lyrics from labels.
+#         lyrics_filepath = aria_folder + "/text/song.txt"    # As per the dataset structure
+#         # Save lyrics in text file as per Dataset structure.
+#         list_of_words = list(map(lambda x: x[0], labels))
+#         lyrics = create_lyrics_from_labels(list_of_words, lyrics_filepath)
 
 
 # if __name__ == "__main__":
@@ -280,3 +329,67 @@ if __name__ == "__main__":
 #     # Save lyrics in text file as per Dataset structure.
 #     list_of_words = list(map(lambda x: x[0], labels))
 #     lyrics = create_lyrics_from_labels(list_of_words, lyrics_filepath)
+
+# if __name__ == "__main__":
+#     textgrid_dir = "/nethome/pjajoria/Github/lyrics-aligner/dataset/Aria Dataset"
+#     files = collect_textgrid_files(textgrid_dir)
+#
+#     all_labels = {}
+#     for datapoint, paths in files.items():
+#         if len(paths) == 0:
+#             # Load from labels.tsv if present
+#             tsv_path = os.path.join(textgrid_dir, datapoint, "labels.tsv")
+#             if os.path.exists(tsv_path):
+#                 labels = load_labels_tsv(tsv_path)
+#                 print(f"[INFO] Loaded labels.tsv for '{datapoint}' with {len(labels)} entries.")
+#             else:
+#                 raise FileNotFoundError(f"No TextGrid or labels.tsv found for '{datapoint}'")
+#         elif len(paths) == 1:
+#             labels = create_labels_from_textgrid(paths[0])
+#         elif len(paths) == 2:
+#             labels = create_labels_from_multiple_textgrid(paths)
+#             # labels = None   # Max time bug with the split Pari siamo TG files
+#         else:
+#             raise ValueError(f"Unexpected number of datapoints: {len(paths)}")
+#         all_labels[datapoint] = labels
+#
+#     with open(textgrid_dir + "/processed_dataset.pickle", "wb") as f:
+#         pickle.dump(all_labels, f)
+#     print(f"Saved a total of {len(all_labels.items())} datapoints.")
+
+
+if __name__ == "__main__":
+    base_dir = "/nethome/pjajoria/Github/lyrics-aligner/dataset/Aria Dataset"
+    pickle_path = os.path.join(base_dir, "processed_dataset.pickle")
+
+    # 1. Load the processed labels dict: datapoint -> List[Tuple[word, start, end]]
+    with open(pickle_path, "rb") as f:
+        all_labels: dict[str, List[Tuple[str, float, float]]] = pickle.load(f)
+
+    # 2. Iterate over each datapoint
+    for datapoint, labels in all_labels.items():
+        if not labels:
+            raise FileNotFoundError(f"{datapoint} does not have any labels stored in the pickle file")
+        dp_folder = os.path.join(base_dir, datapoint)
+
+        # a) Prepare the text/ folder
+        text_folder = os.path.join(dp_folder, "text")
+        os.makedirs(text_folder, exist_ok=True)
+
+        # b) Extract just the words, in order
+        words = [word for word, start, end in labels]
+
+        # c) Write song.txt
+        song_txt_path = os.path.join(text_folder, "song.txt")
+        create_lyrics_from_labels(words, song_txt_path)
+
+        # d) Write labels.tsv
+        tsv_path = os.path.join(dp_folder, "labels.tsv")
+        with open(tsv_path, "w", encoding='utf-8') as tsv:
+            # Header
+            tsv.write("Text\tStart Time\tEnd Time\n")
+            # One row per word
+            for word, start, end in labels:
+                tsv.write(f"{word}\t{start}\t{end}\n")
+
+        print(f"[OK] Wrote text/song.txt and labels.tsv for '{datapoint}'")

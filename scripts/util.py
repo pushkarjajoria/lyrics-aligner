@@ -44,10 +44,13 @@ def create_excel_file(words1, words2, file_path):
 
 
 def clean_words(s: str) -> str:
-    """Strips punctuations from words"""
-    s = s.replace(".", "").replace("…", "").replace(";", "").replace("?", "").replace(",", "") \
-        .replace("!", "").replace(":", "").strip("\"") \
-        .strip("(").strip(")").replace("–", "")
+    """Strips selected punctuation and brackets from the input string and converts it to lowercase."""
+    # Characters to remove
+    chars_to_remove = ['.', '…', ';', '?', ',', '!', ':', '–', '"', '(', ')', '[', ']']
+
+    for char in chars_to_remove:
+        s = s.replace(char, "")
+
     return s.lower()
 
 
@@ -270,27 +273,32 @@ def find_triple_repeating_words(word_list):
 
 def combine_dicts(*dicts):
     combined = {}
-
+    error_str = "ERROR"
     for d in dicts:
         for key, value in d.items():
             if key in combined:
-                # Check if the values are the same
-                if combined[key] != value:
-                    print(f"Key {key} has conflicting values: {combined[key]} and {value}.")
-
-                    # Ask the user for their choice
-                    choice = input("Enter 1 to use the first value, or 2 to use the second value: ").strip()
-                    while choice not in ['1', '2']:
+                existing = combined[key]
+                # Case 1: both have ERROR – skip updating
+                if error_str in existing and error_str in value:
+                    continue
+                # Case 2: existing has ERROR, new is valid – replace
+                if error_str in existing and error_str not in value:
+                    combined[key] = value
+                    continue
+                # Case 3: new has ERROR, existing is valid – keep existing
+                if error_str not in existing and error_str in value:
+                    continue
+                # Case 4: no ERROR – conflict requires user choice
+                if existing != value:
+                    print(f"Key {key} has conflicting values: {existing} and {value}.")
+                    choice = input("Enter 1 to keep the first, or 2 to use the second: ").strip()
+                    while choice not in ['1','2']:
                         print("Invalid choice. Please enter 1 or 2.")
-                        choice = input("Enter 1 to use the first value, or 2 to use the second value: ").strip()
-
-                    # Update the value based on the user's choice
+                        choice = input("Enter 1 or 2: ").strip()
                     if choice == '2':
                         combined[key] = value
-
             else:
                 combined[key] = value
-
     return combined
 
 

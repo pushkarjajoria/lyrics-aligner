@@ -1,21 +1,25 @@
 import copy
+import random
 import time
 from datetime import datetime, timedelta
+from pathlib import Path
+
 import torch
 import numpy as np
 import wandb as wandb
 from torch import nn
 from torch.optim import Adam
 from torch.utils.data import DataLoader, random_split
+from tqdm import tqdm
+
 import model
 import argparse
 import os
 import pickle
 import warnings
-from datahandler import AriaDataset
+from datahandler import AriaDataset, random_split_array
 
 warnings.filterwarnings('ignore')
-
 
 def compute_phoneme_onsets(optimal_path_matrix, hop_length, sampling_rate, return_skipped_idx=False):
     """
@@ -205,10 +209,9 @@ def save_hard_alignment(scores, lyrics_phoneme_symbols, file_name, word_list):
 
 # Function to save model checkpoints
 def save_checkpoint(model, run_name, epoch, steps, wandb):
-    path = os.path.join("checkpoint", run_name)
+    path = os.path.join("/data/users/pjajoria/aria_alignment_checkpoints", run_name)
     os.makedirs(path, exist_ok=True)
-    filename = f'model_epoch_{epoch}_step_{steps}.pth' if epoch \
-        else 'model_final.pth'
+    filename = f'model_epoch_{epoch}_step_{steps}.pth' if epoch else f'model_final_{run_name}.pth'
     full_path = os.path.join(path, filename)
     # Save locally
     torch.save(model.state_dict(), full_path)
@@ -224,7 +227,7 @@ def forward_pass(lyrics_aligner, audio, phonemes_idx):
 # Function to perform training step and return loss
 def compute_loss(lyrics_aligner, audio, phonemes_idx, alpha_tensor, optimizer, loss_fn):
     alpha_t_hat, scores = lyrics_aligner((audio, phonemes_idx))
-    alpha_tensor = alpha_tensor.to_dense()
+    alpha_tensor = alpha_tensor.to_dense().unsqueeze(0)
     alpha_tensor = alpha_tensor.permute((0, 2, 1))
     alpha_t_hat_flattened = alpha_t_hat.view(-1, alpha_t_hat.shape[-1])
     alpha_tensor_flattened = alpha_tensor.view(-1, alpha_tensor.shape[-1])
@@ -244,29 +247,32 @@ def compute_alignment_mse(scores, phonemes, start_time):
     lyrics_phoneme_symbols = list(map(lambda x: x[0], phonemes))
     h_phoneme_onsets, h_word_onsets, h_word_offsets = compute_hard_alignment(detached_scores, lyrics_phoneme_symbols)
     alignment_mse = np.mean((np.array(h_word_onsets) - np.array(start_time)) ** 2)
-    return alignment_mse
+    return alignment_mse, h_word_onsets
 
 
-def forward_sanity_test(model_checkpoint="checkpoint/base/model_parameters.pth", dataset_path="dataset/"):
+def forward_sanity_test(model_checkpoint="checkpoint/base/model_parameters.pth",
+                        dataset_path="/nethome/pjajoria/Github/lyrics-aligner/dataset/Aria Dataset"):
     print("Running a single forward pass to verify.")
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    device = 'cpu'
     print('Running model on {}.'.format(device))
     lyrics_aligner = model.InformedOpenUnmix3().to(device)
     state_dict = torch.load(model_checkpoint, map_location=device)
     lyrics_aligner.load_state_dict(state_dict)
-    w2ph_dict_path = dataset_path + "word2phonemeglobal.pickle"
-    w2ph_file = open(w2ph_dict_path, "rb")
-    w2phoneme_dict = pickle.load(w2ph_file)
+    w2ph_dict_path = dataset_path + "/word2phonemes.pickle"
+    with open(w2ph_dict_path, "rb") as w2ph_file:
+        w2phoneme_dict = pickle.load(w2ph_file)
     full_dataset = AriaDataset(path=dataset_path, word2phoneme_dict=w2phoneme_dict)
-    dataloader = DataLoader(full_dataset, batch_size=1, shuffle=False)
+    dataloader = DataLoader(full_dataset, batch_size=None, batch_sampler=None, collate_fn=None, shuffle=False)
     pickle_in = open('files/phoneme2idx.pickle', 'rb')
     phoneme2idx = pickle.load(pickle_in)
     for name, audio, phonemes, sr, audio_duration, words, start_time, end_time, word_start_indexes, word_end_indexes, alpha_tensor in dataloader:
-        lyrics_phoneme_idx = [phoneme2idx[ph[0]] for ph in phonemes]
+        lyrics_phoneme_idx = [phoneme2idx[ph] for ph in phonemes]
         phonemes_idx = torch.tensor(lyrics_phoneme_idx, dtype=torch.float32, device=device)[None, :]
 
         # Training step
         audio, alpha_tensor = audio.to(device), alpha_tensor.to(device)
+        audio = audio.unsqueeze(0)
         alpha_t_hat, scores = forward_pass(lyrics_aligner, audio, phonemes_idx)
         # Compute alignment MSE
         detached_scores = scores.detach().cpu()
@@ -287,6 +293,11 @@ def train(args):
     Returns:
         None: The function saves model checkpoints and logs metrics but doesn't return any values.
     """
+    # Setting Seeds
+    seed = args.seed
+    random.seed(seed)
+    torch.random.manual_seed(seed)
+    np.random.seed(seed)
 
     # Extract necessary parameters from args
     num_epochs = args.epochs
@@ -294,6 +305,7 @@ def train(args):
     run_name = args.run_name
     learning_rate = args.lr
     accumulation_steps = args.accumulation_steps
+    dataset_path = args.dataset_path
 
     # Warn the user if save_steps is set to 0
     if save_steps == 0:
@@ -317,7 +329,10 @@ def train(args):
     # Load the model and its state
     lyrics_aligner = model.InformedOpenUnmix3().to(device)
     # gradient_monitor = model.GradientMonitor(lyrics_aligner)
-    state_dict = torch.load('checkpoint/base/model_parameters.pth', map_location=device)
+    state_dict = torch.load(
+        "/nethome/pjajoria/Github/lyrics-aligner/checkpoint/base/model_parameters.pth",
+        map_location=device
+    )
     lyrics_aligner.load_state_dict(state_dict)
 
     # Log model gradients and parameters to wandb
@@ -326,17 +341,31 @@ def train(args):
     # Create a copy of the model for baseline comparison
     baseline = copy.deepcopy(lyrics_aligner)
 
-    # Load dataset and perform training/test split
-    dataset_path = "dataset/"
-    w2ph_dict_path = dataset_path + "word2phonemeglobal.pickle"
+    # Get the list of all arias in the dataset folder
+    all_arias = []
+    for aria in os.listdir(dataset_path):
+        if not os.path.isdir(Path(dataset_path, aria)):
+            print(f"{aria} is not a directory, excluding.")
+            continue
+        all_arias.append(aria)
+    if len(all_arias) < 24:
+        print("[Warning] The size of aria dataset is less than 24. I hope this is intentional")
+
+    # Create dataset for train test val
+    test_size = int(len(all_arias) * 0.3)
+    train_size = max(len(all_arias) - test_size, 1)
+    train_dataset_arias, test_dataset_arias = random_split_array(all_arias, [train_size, test_size], seed=seed)
+
+    # Create Dataset for each
+    w2ph_dict_path = dataset_path + "/word2phonemes.pickle"
     w2ph_file = open(w2ph_dict_path, "rb")
     w2phoneme_dict = pickle.load(w2ph_file)
-    full_dataset = AriaDataset(path=dataset_path, word2phoneme_dict=w2phoneme_dict, ignore_list=["casta_diva",
-                                                                                                 "aria_violetta_short"])
-    train_size = max(len(full_dataset) - 1, 1)
-    test_size = len(full_dataset) - train_size
-    train_dataset, test_dataset = random_split(full_dataset, [train_size, test_size])
-    dataloader = DataLoader(train_dataset, batch_size=1, shuffle=True)
+
+    train_dataset = AriaDataset(path=dataset_path, word2phoneme_dict=w2phoneme_dict, subset_list=train_dataset_arias)
+    train_dataset.augment_dataset()
+    test_dataset = AriaDataset(path=dataset_path, word2phoneme_dict=w2phoneme_dict, subset_list=test_dataset_arias)
+
+    dataloader = DataLoader(train_dataset, batch_size=None, batch_sampler=None, collate_fn=None, shuffle=True)
     print(f"Length of train dataset: {len(train_dataset)}. \nLength of test dataset: {len(test_dataset)}.")
     print(f"Training dataset -> {list(map(lambda x: x[0], train_dataset))}")
     print(f"Test dataset -> {list(map(lambda x: x[0], test_dataset))}")
@@ -346,20 +375,23 @@ def train(args):
     optimizer = Adam(lyrics_aligner.parameters(), lr=learning_rate)
 
     # Load phoneme-to-index mapping
-    pickle_in = open('files/phoneme2idx.pickle', 'rb')
+    pickle_in = open('/nethome/pjajoria/Github/lyrics-aligner/files/phoneme2idx.pickle', 'rb')
     phoneme2idx = pickle.load(pickle_in)
 
     # Training loop
     steps = 0
     train_start_time = time.time()
-    for epoch in range(num_epochs):
+    for epoch in tqdm(range(num_epochs)):
         for idx, (name, audio, phonemes, sr, audio_duration, words, start_time, end_time, word_start_indexes, word_end_indexes, alpha_tensor) in enumerate(dataloader):
+            if len(phonemes) != alpha_tensor.shape[0]:
+                raise ValueError(f"Problem with {name}. Length of phonemes ({len(phonemes)}) do not match with the Alpha tensor dimension 0 ({alpha_tensor.shape[0]})")
             print(f"Training on {name}, epoch {epoch}")
-            lyrics_phoneme_idx = [phoneme2idx[ph[0]] for ph in phonemes]
+            lyrics_phoneme_idx = [phoneme2idx[ph] for ph in phonemes]
             phonemes_idx = torch.tensor(lyrics_phoneme_idx, dtype=torch.float32, device=device)[None, :]
 
             # Training step
             audio, alpha_tensor = audio.to(device), alpha_tensor.to(device)
+            audio = audio.unsqueeze(0)
             loss, scores, backward_time = compute_loss(lyrics_aligner, audio, phonemes_idx, alpha_tensor, optimizer, loss_fn)
             backward_time = str(timedelta(seconds=backward_time))
             print(f"Backward pass time = {backward_time} for batch size: {audio.shape[0]}")
@@ -376,7 +408,7 @@ def train(args):
                 save_checkpoint(lyrics_aligner, run_name, epoch, steps, wandb)
 
             # Compute alignment MSE
-            alignment_mse = compute_alignment_mse(scores, phonemes, start_time)
+            alignment_mse, _ = compute_alignment_mse(scores, phonemes, start_time)
 
             # Log metrics to wandb
             wandb.log({
@@ -387,24 +419,35 @@ def train(args):
                 'Backward Pass Time': backward_time
             })
             # gradient_monitor.log_gradients()
-
+    save_checkpoint(lyrics_aligner, run_name, epoch=None, steps=None, wandb=wandb)
     train_end_time = time.time()
     train_total_time = timedelta(seconds=train_end_time - train_start_time)
     print(f"Training complete in {str(train_total_time)}.")
-    # gradient_monitor.close()
-    # Comparison with baseline model on test set
     with torch.no_grad():
         print("Evaluating the model on test set")
         trained_model_mse_total = 0
         baseline_model_mse_total = 0
         total_samples = 0
+
+        results = {
+            "run_info": {
+                "random_seed": seed,
+                "test_set_names": [sample[0] for sample in test_dataset],  # all names in test set
+                "run_name": run_name,
+            },
+            "per_file": {},
+            "summary": {}
+        }
+
         for name, audio, phonemes, sr, audio_duration, words, start_time, end_time, word_start_indexes, word_end_indexes, alpha_tensor in test_dataset:
             print(f"Evaluating on {name}.")
-            audio = torch.Tensor(audio)
-            audio = audio[None, :]
-            # Get model statistics over the test also comparing with the baseline
+            audio = torch.Tensor(audio)[None, :]
+
+            # Prepare phoneme indices
             lyrics_phoneme_idx = [phoneme2idx[ph] for ph in phonemes]
-            phonemes_idx = torch.tensor(lyrics_phoneme_idx, dtype=torch.float32, device=device)[None, :]
+            phonemes_idx = torch.tensor(
+                lyrics_phoneme_idx, dtype=torch.float32, device=device
+            )[None, :]
 
             # Predict using the trained model
             _, scores = lyrics_aligner((audio.to(device), phonemes_idx))
@@ -412,50 +455,75 @@ def train(args):
             # Predict using the baseline model
             _, baseline_scores = baseline((audio.to(device), phonemes_idx))
 
-            # Compute alignment MSE for the trained model and the baseline model and add to total
-            # Compute MSE for Trained Model
-            trained_model_mse = compute_alignment_mse(scores, phonemes, start_time)
+            # Compute alignment MSE
+            trained_model_mse, train_word_onsets = compute_alignment_mse(scores, phonemes, start_time)
+            baseline_model_mse, baseline_word_onsets = compute_alignment_mse(baseline_scores, phonemes, start_time)
             trained_model_mse_total += trained_model_mse
-            print(f"Trained Model MSE for {name}: {trained_model_mse}")
-            # Compute MSE for Baseline Model
-            baseline_model_mse = compute_alignment_mse(baseline_scores, phonemes, start_time)
             baseline_model_mse_total += baseline_model_mse
-            print(f"Baseline Model MSE for {name}: {baseline_model_mse}")
             total_samples += 1
 
-        # Compute average MSE
+            print(f"Trained Model MSE for {name}: {trained_model_mse}")
+            print(f"Baseline Model MSE for {name}: {baseline_model_mse}")
+
+            # Store per-file info
+            results["per_file"][name] = {
+                "name": name,
+                "phonemes": phonemes,
+                "words": words,
+                "ground_truth": {
+                    "start_times": start_time,
+                    "end_times": end_time,
+                },
+                "trained_model": {
+                    "onsets": train_word_onsets,
+                    "mse": trained_model_mse
+                },
+                "baseline_model": {
+                    "onsets": baseline_word_onsets,
+                    "mse": baseline_model_mse
+                }
+            }
+
+        # Compute averages
         avg_trained_model_mse = trained_model_mse_total / total_samples
         avg_baseline_model_mse = baseline_model_mse_total / total_samples
         print(f"Average Trained Model MSE: {avg_trained_model_mse}")
         print(f"Average Baseline Model MSE: {avg_baseline_model_mse}")
-        # Log the average MSE scores to wandb
+
+        results["summary"] = {
+            "avg_trained_model_mse": avg_trained_model_mse,
+            "avg_baseline_model_mse": avg_baseline_model_mse,
+            "total_samples": total_samples,
+        }
+
+        # Save to pickle
+        output_path = Path(f"/nethome/pjajoria/Github/lyrics-aligner/results/{run_name}.pkl")
+        with open(output_path, "wb") as f:
+            pickle.dump(results, f)
+
+        # Log averages to wandb
         wandb.log({
             'Average Trained Model MSE': avg_trained_model_mse,
             'Average Baseline Model MSE': avg_baseline_model_mse,
             'Total Samples': total_samples,
         })
 
-    # Save final model
-    print("Saving final checkpoint")
-    save_checkpoint(lyrics_aligner, run_name, None, None, wandb)
-
-    # End the wandb run
-    run.finish()
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Lyrics aligner')
     parser.add_argument('--epochs', type=int, default=50)
     parser.add_argument('--save_steps', type=int, default=10)
+    parser.add_argument('--seed', type=int, default=42, help="Random seed for the run.")
     parser.add_argument('--run_name', type=str, default=datetime.now().strftime("%m%d_%H%M"))
     parser.add_argument('--lr', type=float, default=1e-5)
-    parser.add_argument('--accumulation_steps', type=int, default=3)
+    parser.add_argument('--accumulation_steps', type=int, default=1)
+    parser.add_argument('--dataset_path', type=str, default="/nethome/pjajoria/Github/lyrics-aligner/dataset/Aria_Dataset")
     parser.add_argument("--forward_pass_sanity", action="store_true",
-                        help="Runs just a single forward pass as a sanity check.")
+                        help="Runs just a single forward pass as a sanity check.", default=False)
     args = parser.parse_args()
 
     # args.forward_pass_sanity = True     # THIS SHOULD BE COMMENTED!!
-
+    args.run_name += f"_{args.seed}"
     if args.forward_pass_sanity:
         forward_sanity_test()
     else:

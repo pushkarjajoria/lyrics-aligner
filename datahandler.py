@@ -1,14 +1,77 @@
+import copy
 import os
-from dataclasses import dataclass
+import random
+from pathlib import Path
+
 import numpy as np
 import librosa
 import torch
+from tqdm import tqdm
 from numpy import ndarray
-from torch import Tensor
 from torch.utils.data import Dataset, DataLoader
 import pickle
 from typing import List, Tuple
 import Levenshtein
+import torchaudio
+from scipy.signal import butter, lfilter
+import torchaudio.functional as F
+import torchaudio.transforms as T
+
+from data_augmentation import additive_noise, apply_rir, pitch_shift, mask_frequency
+
+arpabet_phonemes = [
+    "AA", "AE", "AH", "AO", "AW", "AY",
+    "B",
+    "CH",
+    "D", "DH",
+    "EH", "ER", "EY",
+    "F",
+    "G",
+    "HH",
+    "IH", "IY",
+    "JH",
+    "K",
+    "L",
+    "M",
+    "N", "NG",
+    "OW", "OY",
+    "P",
+    "R",
+    "S", "SH",
+    "T", "TH",
+    "UH", "UW",
+    "V",
+    "W",
+    "Y",
+    "Z", "ZH"
+]
+
+
+def random_split_array(arr: list, splits: List[int], seed: int = 42) -> List[list]:
+    """
+    Randomly split a list into multiple sub-lists according to specified sizes.
+
+    Args:
+        arr (list): The input list to split.
+        splits (List[int]): A list of integers specifying the lengths of each split.
+        seed (int): Optional random seed for reproducibility.
+
+    Returns:
+        List[list]: A list of sub-lists corresponding to the requested splits.
+    """
+    if sum(splits) != len(arr):
+        raise ValueError(f"Sum of splits {sum(splits)} does not match length of array {len(arr)}")
+
+    arr_copy = arr.copy()
+    random.seed(seed)
+    random.shuffle(arr_copy)
+
+    result = []
+    start = 0
+    for split_size in splits:
+        result.append(arr_copy[start:start + split_size])
+        start += split_size
+    return result
 
 
 def get_dataloader_obj(dataset_patt="dataset/", pickle_file="dataset/aria_dataset.pickle", batch_size=1, shuffle=True):
@@ -23,6 +86,7 @@ def get_dataloader_obj(dataset_patt="dataset/", pickle_file="dataset/aria_datase
 
 
 def words_to_phonemes(words, w2ph_dict, folder_name):
+    updated = False
     phonemes = []
     word_start_indexes = []
     word_end_indexes = []
@@ -32,6 +96,7 @@ def words_to_phonemes(words, w2ph_dict, folder_name):
         if word in w2ph_dict:
             phoneme_list = w2ph_dict[word]
         else:
+            updated = True
             print(f"Unable to find the match for word: {word} in Aria: {folder_name}")
 
             # Find the closest words in the word2ph dictionary.
@@ -55,7 +120,7 @@ def words_to_phonemes(words, w2ph_dict, folder_name):
         start_idx = start_idx+len(phoneme_list) + 1
 
         phonemes.append(">")
-    return phonemes, word_start_indexes, word_end_indexes
+    return phonemes, word_start_indexes, word_end_indexes, updated
 
 
 def softmax(x: ndarray) -> List[float]:
@@ -216,7 +281,9 @@ def create_sparse_alpha_tensor_from_labels(words, w2ph_dict, sample_rate, start_
         # s_time, e_time = s_time.item(), e_time.item()
         phonemes_in_word = w2ph_dict[word]
         # Removing the tuple by using the first element. [('EH',), [(S,)] -> ['EH', 'S']
-        phonemes_in_word = list(map(lambda x: x[0], phonemes_in_word))
+        if not phonemes_in_word or phonemes_in_word[0] not in arpabet_phonemes:
+            print(f"Invalid Phonemes. {phonemes_in_word}")
+        # phonemes_in_word = list(map(lambda x: x[0], phonemes_in_word))
         num_phonemes = len(phonemes_in_word)
         duration = e_time - s_time
         silence_start_time = e_time     # Assumption: Silence Starts when the word ends.
@@ -230,7 +297,8 @@ def create_sparse_alpha_tensor_from_labels(words, w2ph_dict, sample_rate, start_
 
     # Find total number of frames and total phonemes (1-based indexing)
     total_frames = len(phonemes_in_stft_frames)
-    total_phonemes = max(max(phonemes_in_stft_frames, default=0), default=0) + 1
+    # total_phonemes = max(max(phonemes_in_stft_frames, default=0), default=0) + 1
+    total_phonemes = len(phoneme_timestamps)  # includes the initial and final '>' tokens
 
     # Collect indices and values
     indices = []
@@ -255,21 +323,10 @@ def create_sparse_alpha_tensor_from_labels(words, w2ph_dict, sample_rate, start_
     return sparse_alpha_tensor
 
 
-@dataclass
-class Aria:
-    name: str
-    audio: Tensor   # (timesteps, )
-    phonemes: List
-    start_time: List
-    end_time: List
-    word_start_indexes: List
-    word_end_indexes: List
-
-
 class AriaDataset(Dataset):
-    def __init__(self, path, word2phoneme_dict, pickle_file='./dataset/aria_dataset.pickle', ignore_list=None):
+    def __init__(self, path, word2phoneme_dict, subset_list=None, augmentation_pickle_folder="/data/users/pjajoria/aria_augmentations/", sample_rate=16000):
         """
-        Create the dataset by either loading it from the pickle file if it is provided else creates one using the path.
+        Create the dataset by going through the dataset folder path.
 
         Folder structure requirements:
         The path should contain multiple folders, where each folder represents a song dataset.
@@ -280,11 +337,14 @@ class AriaDataset(Dataset):
             │   └── song.mp3
             ├── text/
             │   └── song.txt
+            ├── separated_vocals/
+            │   └── song_dataset_folder_vocals.wav
+            │   └── song_dataset_folder_accompaniment.wav
             ├── labels.tsv
             └── word2phonemes.pickle [Deprecated] Not used directly.
 
         Folder Names:
-        The name of the song dataset folder is used as the identifier for the dataset.
+        The name of the song dataset folder is used as the identifier for the data point.
 
         File Names and Their Contents:
         - song.mp3: An audio file of the song.
@@ -292,17 +352,20 @@ class AriaDataset(Dataset):
         - labels.tsv: A tab-separated file containing the start and end times of each word in the song.
                         The file should contain header lines [Text	Start Time	End Time].
         - [Depricated] w̶o̶r̶d̶2̶p̶h̶o̶n̶e̶m̶e̶s̶.̶p̶i̶c̶k̶l̶e̶: A̶ ̶p̶i̶c̶k̶l̶e̶ ̶f̶i̶l̶e̶ ̶t̶h̶a̶t̶ ̶m̶a̶p̶s̶ ̶e̶a̶c̶h̶ ̶w̶o̶r̶d̶ ̶t̶o̶ ̶i̶t̶s̶ ̶c̶o̶r̶r̶e̶s̶p̶o̶n̶d̶i̶n̶g̶ ̶p̶h̶o̶n̶e̶m̶e̶s̶.̶
-                                            Now there is a global word2phoneme file that has been combined from all.
+                                            Now there is a global word2phoneme file in dataset root dir that has been combined from all to avoid conflicts.
+        - separated_vocals: Contain the spleeter separated vocals along with accompaniments in a .wav file
 
         Args:
             pickle_file (object):
             path (str): The path to the directory containing the song datasets.
         """
-        if ignore_list is None:
-            ignore_list = []
-        self.ignore_list = ignore_list
+        if subset_list is None:
+            subset_list = []
+        self.subset_list = subset_list
         self.path = path
+        self.sample_rate = sample_rate
         self.word2phoneme_dict = word2phoneme_dict
+        self.augmentation_pickle_folder = augmentation_pickle_folder
         print("Creating the dataset, this may take a few minutes.")
         self._create_dataset()
 
@@ -311,8 +374,8 @@ class AriaDataset(Dataset):
         self.labels = []
 
         folders = [folder for folder in os.listdir(self.path) if os.path.isdir(os.path.join(self.path, folder))]
-        for folder_name in folders:
-            if folder_name in self.ignore_list:
+        for folder_name in tqdm(folders):
+            if self.subset_list and folder_name not in self.subset_list:
                 print(f"Ignoring {folder_name}.")
                 continue
             if folder_name in ['.DS_Store', "aria_dataset.pickle"]:
@@ -327,7 +390,10 @@ class AriaDataset(Dataset):
             # Read text file as a list of words
             with open(text_file_path, 'r') as text_file:
                 words = text_file.read().split()
-                phonemes, word_start_indexes, word_end_indexes = words_to_phonemes(words, self.word2phoneme_dict, folder_name)
+                phonemes, word_start_indexes, word_end_indexes, updated = words_to_phonemes(words, self.word2phoneme_dict, folder_name)
+                if updated:
+                    self.save_word2phoneme_dict()
+
             self.X.append({"audio": audio, "phonemes": phonemes, "sr": sr, "audio_duration": audio_duration, "words": words})
             # Read timestamps from labels.tsv
             with open(labels_file_path, 'r') as labels_file:
@@ -335,8 +401,14 @@ class AriaDataset(Dataset):
                 lines = labels_file.readlines()[1:]  # Skip the first row (headers)
                 for line in lines:
                     parts = line.strip().split('\t')
-                    start_times.append(float(parts[1]))
-                    end_times.append(float(parts[2]))
+                    # if len(parts) < 3:
+                    #     print("ERROR in {folder_name}: {line}".format(folder_name=folder_name, line=line))
+                    try:
+                        start_times.append(float(parts[1]))
+                        end_times.append(float(parts[2]))
+                    except (ValueError, IndexError) as e:
+                        print(f"Problem with folder {folder_name}: {line}")
+                        raise e
 
                 # generate the alpha tensor for labels as a sparse matrix.
                 # Using default hop length and window size.
@@ -351,9 +423,10 @@ class AriaDataset(Dataset):
                                     "alpha_labels": alpha_tensor})
             print(f"Processed {folder_name}...")
 
-    def pickle_dataset(self):
-        with open('./dataset/aria_dataset.pickle', 'wb') as file:
-            pickle.dump(self, file)
+    def save_word2phoneme_dict(self, path="/nethome/pjajoria/Github/lyrics-aligner/dataset/Aria Dataset/word2phonemes.pickle"):
+        with open(path, 'wb') as file:
+            pickle.dump(self.word2phoneme_dict, file)
+        print("Saved updated word2phonemes dictionary.")
 
     def __len__(self):
         return len(self.X)
@@ -372,9 +445,49 @@ class AriaDataset(Dataset):
 
         return name, audio, phonemes, sr, audio_duration, words, start_time, end_time, word_start_indexes, word_end_indexes, alpha_tensor
 
+    def _augment_audio(self, audio):
+        PITCH_SHIFT_STEPS = [-8, -6, -4, -2, 2, 4, 6, 8]
+
+        noisy_audio = additive_noise(audio).cpu().numpy()
+        reverb_audio = apply_rir(audio).cpu().numpy()
+        pitch_steps = random.choice(PITCH_SHIFT_STEPS)
+        pitch_shifted_audio = pitch_shift(audio, pitch_steps).cpu().numpy()
+        frequency_masked_audio = mask_frequency(audio).cpu().numpy()
+        return [("added_noise", noisy_audio), ("reverb", reverb_audio), (f"{pitch_steps}_pitch_shifted", pitch_shifted_audio), ("freq_mask", frequency_masked_audio)]
+
+    def augment_dataset(self):
+        print("Augmenting the dataset...")
+        for i in tqdm(range(len(self.X))):
+            inp = self.X[i]
+            label = self.labels[i]
+            audio = inp['audio']
+            aria_name = label['name']
+            if os.path.isfile(Path(self.augmentation_pickle_folder, aria_name, ".pkl")):
+                with open(Path(self.augmentation_pickle_folder, aria_name, ".pkl"), "rb") as file:
+                    audio_augmentations = pickle.load(file)
+            else:
+                print(f"Creating the augmentation for {aria_name}...")
+                audio = torch.from_numpy(audio).float()
+                audio_augmentations = self._augment_audio(audio)
+                with open(Path(self.augmentation_pickle_folder, aria_name + ".pkl"), "wb") as file:
+                    pickle.dump(audio_augmentations, file)
+
+            for aug_name, audio_augment in audio_augmentations:
+                aug_inp = copy.deepcopy(inp)
+                aug_label = copy.deepcopy(label)
+                aug_inp['audio'] = audio_augment
+                aug_label['name'] = aug_label['name'] + f"_{aug_name}"
+                self.X.append(aug_inp)
+                self.labels.append(aug_label)
+        print("Finished augmenting the dataset.")
+
 
 if __name__ == "__main__":
-    dataset = AriaDataset(path="dataset/")
-    # dataset.pickle_dataset()
+    word2phoneme_dict_path = "/nethome/pjajoria/Github/lyrics-aligner/dataset/Aria Dataset/word2phonemes.pickle"
+    with open(word2phoneme_dict_path, 'rb') as file:
+        word2phoneme_dict = pickle.load(file)
+    dataset = AriaDataset(path="/nethome/pjajoria/Github/lyrics-aligner/dataset/Aria Dataset", word2phoneme_dict=word2phoneme_dict)
+    # with open('/nethome/pjajoria/Github/lyrics-aligner/dataset/Aria Dataset/aria_dataset.pickle', 'wb') as file:
+    #     pickle.dump(dataset, file)
+    #     print("Pickle File Saved!")
     print("Done")
-    dataloader = DataLoader(dataset, batch_size=1, shuffle=True)
