@@ -315,8 +315,8 @@ def load_labels_tsv(tsv_path):
 #     """
 #     Multiple textgrid files for a single folder
 #     """
-#     textgrid_parts = ["/Users/pushkarjajoria/Desktop/Aria data prep/pari_siamo/Rigoletto_PariSiamo_0_212.TextGrid",
-#                       "/Users/pushkarjajoria/Desktop/Aria data prep/pari_siamo/Rigoletto_PariSiamo_213_240.TextGrid"]
+#     textgrid_parts = ["/Users/unknown_namejajoria/Desktop/Aria data prep/pari_siamo/Rigoletto_PariSiamo_0_212.TextGrid",
+#                       "/Users/unknown_namejajoria/Desktop/Aria data prep/pari_siamo/Rigoletto_PariSiamo_213_240.TextGrid"]
 #     labels = create_labels_from_multiple_textgrid(textgrid_parts)
 #     aria_folder = os.path.dirname(textgrid_parts[0])
 #     # Save labels in tsv
@@ -331,7 +331,7 @@ def load_labels_tsv(tsv_path):
 #     lyrics = create_lyrics_from_labels(list_of_words, lyrics_filepath)
 
 # if __name__ == "__main__":
-#     textgrid_dir = "/nethome/pjajoria/Github/lyrics-aligner/dataset/Aria Dataset"
+#     textgrid_dir = "/nethome/unknown_user/Github/lyrics-aligner/dataset/Aria Dataset"
 #     files = collect_textgrid_files(textgrid_dir)
 #
 #     all_labels = {}
@@ -359,7 +359,7 @@ def load_labels_tsv(tsv_path):
 
 
 if __name__ == "__main__":
-    base_dir = "/nethome/pjajoria/Github/lyrics-aligner/dataset/Aria Dataset"
+    base_dir = "/nethome/unknown_user/Github/lyrics-aligner/dataset/Aria Dataset"
     pickle_path = os.path.join(base_dir, "processed_dataset.pickle")
 
     # 1. Load the processed labels dict: datapoint -> List[Tuple[word, start, end]]

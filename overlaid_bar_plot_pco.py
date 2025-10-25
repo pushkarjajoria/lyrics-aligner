@@ -9,7 +9,7 @@ import pandas as pd
 matplotlib.use("TkAgg")
 
 # --- User configuration ---
-directory = "/nethome/pjajoria/Github/lyrics-aligner/results/per_model_per_aria"
+directory = "/nethome/unknown_user/Github/lyrics-aligner/results/per_model_per_aria"
 
 # Map filenames to display names (update as needed)
 names = {

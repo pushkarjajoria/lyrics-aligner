@@ -209,7 +209,7 @@ def save_hard_alignment(scores, lyrics_phoneme_symbols, file_name, word_list):
 
 # Function to save model checkpoints
 def save_checkpoint(model, run_name, epoch, steps, wandb):
-    path = os.path.join("/data/users/pjajoria/aria_alignment_checkpoints", run_name)
+    path = os.path.join("/data/users/unknown_user/aria_alignment_checkpoints", run_name)
     os.makedirs(path, exist_ok=True)
     filename = f'model_epoch_{epoch}_step_{steps}.pth' if epoch else f'model_final_{run_name}.pth'
     full_path = os.path.join(path, filename)
@@ -251,7 +251,7 @@ def compute_alignment_mse(scores, phonemes, start_time):
 
 
 def forward_sanity_test(model_checkpoint="checkpoint/base/model_parameters.pth",
-                        dataset_path="/nethome/pjajoria/Github/lyrics-aligner/dataset/Aria Dataset"):
+                        dataset_path="/nethome/unknown_user/Github/lyrics-aligner/dataset/Aria Dataset"):
     print("Running a single forward pass to verify.")
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     device = 'cpu'
@@ -330,7 +330,7 @@ def train(args):
     lyrics_aligner = model.InformedOpenUnmix3().to(device)
     # gradient_monitor = model.GradientMonitor(lyrics_aligner)
     state_dict = torch.load(
-        "/nethome/pjajoria/Github/lyrics-aligner/checkpoint/base/model_parameters.pth",
+        "/nethome/unknown_user/Github/lyrics-aligner/checkpoint/base/model_parameters.pth",
         map_location=device
     )
     lyrics_aligner.load_state_dict(state_dict)
@@ -375,7 +375,7 @@ def train(args):
     optimizer = Adam(lyrics_aligner.parameters(), lr=learning_rate)
 
     # Load phoneme-to-index mapping
-    pickle_in = open('/nethome/pjajoria/Github/lyrics-aligner/files/phoneme2idx.pickle', 'rb')
+    pickle_in = open('/nethome/unknown_user/Github/lyrics-aligner/files/phoneme2idx.pickle', 'rb')
     phoneme2idx = pickle.load(pickle_in)
 
     # Training loop
@@ -497,7 +497,7 @@ def train(args):
         }
 
         # Save to pickle
-        output_path = Path(f"/nethome/pjajoria/Github/lyrics-aligner/results/{run_name}.pkl")
+        output_path = Path(f"/nethome/unknown_user/Github/lyrics-aligner/results/{run_name}.pkl")
         with open(output_path, "wb") as f:
             pickle.dump(results, f)
 
@@ -517,7 +517,7 @@ if __name__ == "__main__":
     parser.add_argument('--run_name', type=str, default=datetime.now().strftime("%m%d_%H%M"))
     parser.add_argument('--lr', type=float, default=1e-5)
     parser.add_argument('--accumulation_steps', type=int, default=1)
-    parser.add_argument('--dataset_path', type=str, default="/nethome/pjajoria/Github/lyrics-aligner/dataset/Aria_Dataset")
+    parser.add_argument('--dataset_path', type=str, default="/nethome/unknown_user/Github/lyrics-aligner/dataset/Aria_Dataset")
     parser.add_argument("--forward_pass_sanity", action="store_true",
                         help="Runs just a single forward pass as a sanity check.", default=False)
     args = parser.parse_args()

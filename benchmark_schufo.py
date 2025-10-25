@@ -14,7 +14,7 @@ import align
 from evaluate_helper import compute_alignment_metrics, print_results
 
 
-def get_alignments(dataset_path, model_path="/nethome/pjajoria/Github/lyrics-aligner/checkpoint/base/model_parameters.pth", alignment_model=None):
+def get_alignments(dataset_path, model_path="/nethome/unknown_user/Github/lyrics-aligner/checkpoint/base/model_parameters.pth", alignment_model=None):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     if alignment_model is None:
         print("Using baseline alignment model...")
@@ -33,11 +33,11 @@ def get_alignments(dataset_path, model_path="/nethome/pjajoria/Github/lyrics-ali
     dataloader = DataLoader(full_dataset, batch_size=None, batch_sampler=None, collate_fn=None, shuffle=True)
 
     # Load phoneme-to-index mapping (same file used by align.py)
-    pickle_in = open('/nethome/pjajoria/Github/lyrics-aligner/files/phoneme2idx.pickle', 'rb')
+    pickle_in = open('/nethome/unknown_user/Github/lyrics-aligner/files/phoneme2idx.pickle', 'rb')
     phoneme2idx = pickle.load(pickle_in)
     pickle_in.close()
 
-    outputs_dir = os.path.join("/nethome/pjajoria/Github/lyrics-aligner/results/schufo")
+    outputs_dir = os.path.join("/nethome/unknown_user/Github/lyrics-aligner/results/schufo")
     word_onsets_dir = os.path.join(outputs_dir, "word_onsets")
     os.makedirs(word_onsets_dir, exist_ok=True)
     onsets_map = {}
@@ -107,12 +107,12 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description="Run Schufo's code for forced aligment on Aria dataset")
-    parser.add_argument("--dataset_path", type=str, default="/nethome/pjajoria/Github/lyrics-aligner/dataset/Aria_Dataset")
-    parser.add_argument("--model-path", type=str, default="/nethome/pjajoria/Github/lyrics-aligner/checkpoint/base/model_parameters.pth")
+    parser.add_argument("--dataset_path", type=str, default="/nethome/unknown_user/Github/lyrics-aligner/dataset/Aria_Dataset")
+    parser.add_argument("--model-path", type=str, default="/nethome/unknown_user/Github/lyrics-aligner/checkpoint/base/model_parameters.pth")
     args = parser.parse_args()
 
     # res = get_alignments(args.dataset_path, args.model_path)
-    res_path = "/nethome/pjajoria/Github/lyrics-aligner/results/schufo"
+    res_path = "/nethome/unknown_user/Github/lyrics-aligner/results/schufo"
     res = read_second_entries(f"{res_path}/word_onsets")
     timestamps = {}
     for k, v in res.items():
@@ -123,13 +123,13 @@ if __name__ == "__main__":
     results = compute_alignment_metrics(timestamps, tolerance=0.3)
     per_aria = results["per_aria"]
     rmse_per_aria = []
-    rmse_res_path = "/nethome/pjajoria/Github/lyrics-aligner/results/per_model_rmse"
+    rmse_res_path = "/nethome/unknown_user/Github/lyrics-aligner/results/per_model_rmse"
     for aria, value in per_aria.items():
         rmse_per_aria.append(value['rmse'])
     with open(f"{rmse_res_path}/schufo.pkl", "wb") as f:
         pickle.dump(rmse_per_aria, f)
 
-    res_path_per_aria = "/nethome/pjajoria/Github/lyrics-aligner/results/per_model_per_aria"
+    res_path_per_aria = "/nethome/unknown_user/Github/lyrics-aligner/results/per_model_per_aria"
     with open(f"{res_path_per_aria}/schufo.pkl", "wb") as f:
         pickle.dump(per_aria, f)
     print_results(results)

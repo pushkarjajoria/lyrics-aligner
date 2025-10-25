@@ -324,7 +324,7 @@ def create_sparse_alpha_tensor_from_labels(words, w2ph_dict, sample_rate, start_
 
 
 class AriaDataset(Dataset):
-    def __init__(self, path, word2phoneme_dict, subset_list=None, augmentation_pickle_folder="/data/users/pjajoria/aria_augmentations/", sample_rate=16000):
+    def __init__(self, path, word2phoneme_dict, subset_list=None, augmentation_pickle_folder="/data/users/unknown_user/aria_augmentations/", sample_rate=16000):
         """
         Create the dataset by going through the dataset folder path.
 
@@ -423,7 +423,7 @@ class AriaDataset(Dataset):
                                     "alpha_labels": alpha_tensor})
             print(f"Processed {folder_name}...")
 
-    def save_word2phoneme_dict(self, path="/nethome/pjajoria/Github/lyrics-aligner/dataset/Aria Dataset/word2phonemes.pickle"):
+    def save_word2phoneme_dict(self, path="/nethome/unknown_user/Github/lyrics-aligner/dataset/Aria Dataset/word2phonemes.pickle"):
         with open(path, 'wb') as file:
             pickle.dump(self.word2phoneme_dict, file)
         print("Saved updated word2phonemes dictionary.")
@@ -483,11 +483,11 @@ class AriaDataset(Dataset):
 
 
 if __name__ == "__main__":
-    word2phoneme_dict_path = "/nethome/pjajoria/Github/lyrics-aligner/dataset/Aria Dataset/word2phonemes.pickle"
+    word2phoneme_dict_path = "/nethome/unknown_user/Github/lyrics-aligner/dataset/Aria Dataset/word2phonemes.pickle"
     with open(word2phoneme_dict_path, 'rb') as file:
         word2phoneme_dict = pickle.load(file)
-    dataset = AriaDataset(path="/nethome/pjajoria/Github/lyrics-aligner/dataset/Aria Dataset", word2phoneme_dict=word2phoneme_dict)
-    # with open('/nethome/pjajoria/Github/lyrics-aligner/dataset/Aria Dataset/aria_dataset.pickle', 'wb') as file:
+    dataset = AriaDataset(path="/nethome/unknown_user/Github/lyrics-aligner/dataset/Aria Dataset", word2phoneme_dict=word2phoneme_dict)
+    # with open('/nethome/unknown_user/Github/lyrics-aligner/dataset/Aria Dataset/aria_dataset.pickle', 'wb') as file:
     #     pickle.dump(dataset, file)
     #     print("Pickle File Saved!")
     print("Done")

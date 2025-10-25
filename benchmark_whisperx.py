@@ -54,9 +54,9 @@ def build_timestamp_cache(dataset_dir, prediction_directory):
 
 
 if __name__ == "__main__":
-    timestamps = build_timestamp_cache("/nethome/pjajoria/Github/lyrics-aligner/dataset/Aria_Dataset", "/nethome/pjajoria/Github/lyrics-aligner/results/whisperx_sepa_vocals")
+    timestamps = build_timestamp_cache("/nethome/unknown_user/Github/lyrics-aligner/dataset/Aria_Dataset", "/nethome/unknown_user/Github/lyrics-aligner/results/whisperx_sepa_vocals")
     results = compute_alignment_metrics(timestamps, tolerance=0.3)
-    res_path = "/nethome/pjajoria/Github/lyrics-aligner/results/per_model_rmse"
+    res_path = "/nethome/unknown_user/Github/lyrics-aligner/results/per_model_rmse"
     per_aria = results["per_aria"]
     rmse_per_aria = []
     for aria, value in per_aria.items():
@@ -64,7 +64,7 @@ if __name__ == "__main__":
     with open(f"{res_path}/whisperx_sv.pkl", "wb") as f:
         pickle.dump(rmse_per_aria, f)
 
-    res_path_per_aria = "/nethome/pjajoria/Github/lyrics-aligner/results/per_model_per_aria"
+    res_path_per_aria = "/nethome/unknown_user/Github/lyrics-aligner/results/per_model_per_aria"
     with open(f"{res_path_per_aria}/whisperx_sv.pkl", "wb") as f:
         pickle.dump(per_aria, f)
 

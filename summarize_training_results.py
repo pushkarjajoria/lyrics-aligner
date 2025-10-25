@@ -6,11 +6,11 @@ from eval_model import evaluate_alignment
 
 # Hardcoded 5 folds
 pkl_files = [
-    "/nethome/pjajoria/Github/lyrics-aligner/results/augmentation1810_1800_42.pkl",
-    "/nethome/pjajoria/Github/lyrics-aligner/results/augmentation1810_1800_43.pkl",
-    "/nethome/pjajoria/Github/lyrics-aligner/results/augmentation1810_1800_44.pkl",
-    "/nethome/pjajoria/Github/lyrics-aligner/results/augmentation1810_1800_45.pkl",
-    "/nethome/pjajoria/Github/lyrics-aligner/results/augmentation1910_2352_46.pkl",
+    "/nethome/unknown_user/Github/lyrics-aligner/results/augmentation1810_1800_42.pkl",
+    "/nethome/unknown_user/Github/lyrics-aligner/results/augmentation1810_1800_43.pkl",
+    "/nethome/unknown_user/Github/lyrics-aligner/results/augmentation1810_1800_44.pkl",
+    "/nethome/unknown_user/Github/lyrics-aligner/results/augmentation1810_1800_45.pkl",
+    "/nethome/unknown_user/Github/lyrics-aligner/results/augmentation1910_2352_46.pkl",
 ]
 
 

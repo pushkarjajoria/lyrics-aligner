@@ -9,7 +9,7 @@ import pandas as pd
 matplotlib.use("TkAgg")
 
 # --- User configuration ---
-directory = "/nethome/pjajoria/Github/lyrics-aligner/results/per_model_rmse"
+directory = "/nethome/unknown_user/Github/lyrics-aligner/results/per_model_rmse"
 
 # Map filenames to display names (update this as needed)
 names = {
@@ -53,4 +53,4 @@ plt.title("Per-Aria Onset RMSE Comparison Across Models", pad=15)
 plt.xticks(rotation=20, ha="center")
 plt.grid(axis="y", linestyle="--", alpha=0.7)
 plt.tight_layout()
-plt.savefig("/nethome/pjajoria/Github/lyrics-aligner/results/per_model_rmse/rmse_box_plot.png", dpi=300)
+plt.savefig("/nethome/unknown_user/Github/lyrics-aligner/results/per_model_rmse/rmse_box_plot.png", dpi=300)

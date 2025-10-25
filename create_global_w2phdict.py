@@ -96,7 +96,7 @@ def fix_global_dict(combined):
 
 
 if __name__ == "__main__":
-    base_dir = "/nethome/pjajoria/Github/lyrics-aligner/dataset/Aria Dataset"
+    base_dir = "/nethome/unknown_user/Github/lyrics-aligner/dataset/Aria Dataset"
     dicts = []
 
     # find all immediate subfolders

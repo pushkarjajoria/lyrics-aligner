@@ -4,7 +4,7 @@ from tqdm import tqdm
 import whisperx
 
 device = "cuda"  # or "cpu"
-output_dir = "/nethome/pjajoria/Github/lyrics-aligner/results/whisperx_sepa_vocals"
+output_dir = "/nethome/unknown_user/Github/lyrics-aligner/results/whisperx_sepa_vocals"
 
 
 def align(audio_path: str, text_line: str, name: str) -> None:
@@ -56,7 +56,7 @@ def align(audio_path: str, text_line: str, name: str) -> None:
 
 
 if __name__ == "__main__":
-    dataset_path = "/nethome/pjajoria/Github/lyrics-aligner/dataset/Aria_Dataset"
+    dataset_path = "/nethome/unknown_user/Github/lyrics-aligner/dataset/Aria_Dataset"
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
     # Collect only valid aria directories

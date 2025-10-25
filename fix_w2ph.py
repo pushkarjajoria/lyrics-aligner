@@ -73,7 +73,7 @@ if __name__ == "__main__":
     "l'arte -> l - o n t e   - >   L   O W   N   T   E Y"
     with open("phoneme_update_logs.txt", "r", encoding="utf-8") as f:
         log_contents = f.read()
-    word2phoneme_dict_path = "/nethome/pjajoria/Github/lyrics-aligner/dataset/Aria Dataset/word2phonemes.pickle"
+    word2phoneme_dict_path = "/nethome/unknown_user/Github/lyrics-aligner/dataset/Aria Dataset/word2phonemes.pickle"
     with open(word2phoneme_dict_path, 'rb') as file:
         word2phoneme_dict = pickle.load(file)
     sanity_check(word2phoneme_dict)

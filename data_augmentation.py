@@ -221,7 +221,7 @@ if __name__ == "__main__":
     PITCH_SHIFT_STEPS = [-8, -6, -4, -2, 2, 4, 6, 8]
     # Load an audio file
 
-    y, sr = torchaudio.load("/nethome/pjajoria/Github/lyrics-aligner/dataset/Aria_Dataset/Bellini_Puritani_Suoni_la_tromba/audio/song.mp3")
+    y, sr = torchaudio.load("/nethome/unknown_user/Github/lyrics-aligner/dataset/Aria_Dataset/Bellini_Puritani_Suoni_la_tromba/audio/song.mp3")
     resampler = T.Resample(sr, 16000)
     start = datetime.datetime.now()
     audio = resampler(y)

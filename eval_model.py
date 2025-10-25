@@ -5,10 +5,10 @@ import torch
 
 # Hardcoded list of pickle result files (your 4 folds)
 pkl_files = [
-    "/nethome/pjajoria/Github/lyrics-aligner/results/augmentation1810_1800_42.pkl",
-    "/nethome/pjajoria/Github/lyrics-aligner/results/augmentation1810_1800_43.pkl",
-    "/nethome/pjajoria/Github/lyrics-aligner/results/augmentation1810_1800_44.pkl",
-    "/nethome/pjajoria/Github/lyrics-aligner/results/augmentation1810_1800_45.pkl",
+    "/nethome/unknown_user/Github/lyrics-aligner/results/augmentation1810_1800_42.pkl",
+    "/nethome/unknown_user/Github/lyrics-aligner/results/augmentation1810_1800_43.pkl",
+    "/nethome/unknown_user/Github/lyrics-aligner/results/augmentation1810_1800_44.pkl",
+    "/nethome/unknown_user/Github/lyrics-aligner/results/augmentation1810_1800_45.pkl",
 ]
 
 

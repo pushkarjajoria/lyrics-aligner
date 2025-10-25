@@ -215,7 +215,7 @@ def combine_textgrid_files(file_list):
 
     word_labels = []
     james_annotation_time = 179.0
-    with open("/Users/pushkarjajoria/Downloads/Archive/word_timestamps.ass", encoding='utf_8_sig') as handle:
+    with open("/Users/unknown_namejajoria/Downloads/Archive/word_timestamps.ass", encoding='utf_8_sig') as handle:
         ass_obj = ass.parse(handle)
     aegi_sub_lines = ass_obj.events._lines
     time_start, i = 0.0, 0
@@ -348,7 +348,7 @@ if __name__ == "__main__":
     """
     Generate word to pickle from tsv file
     """
-    tsv_files = ["/Users/pushkarjajoria/Desktop/Aria data prep/casta_diva/norma_transcription.tsv"]
+    tsv_files = ["/Users/unknown_namejajoria/Desktop/Aria data prep/casta_diva/norma_transcription.tsv"]
 
     for tsv_file_path in tsv_files:
         aria_folder = os.path.dirname(tsv_file_path)

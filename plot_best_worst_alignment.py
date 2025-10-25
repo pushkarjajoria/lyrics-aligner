@@ -84,4 +84,4 @@ if __name__ == "__main__":
     worst_aria = "Verdi_Rigoletto_Caro_Nome"
     worst_ckpt_file = "results/augmentation1810_1800_43.pkl"
 
-    plot_best_worst_alignment(best_aria, best_ckpt_file, worst_aria, worst_ckpt_file, output_dir="/nethome/pjajoria/Github/lyrics-aligner/results/plots/finetuned")
+    plot_best_worst_alignment(best_aria, best_ckpt_file, worst_aria, worst_ckpt_file, output_dir="/nethome/unknown_user/Github/lyrics-aligner/results/plots/finetuned")

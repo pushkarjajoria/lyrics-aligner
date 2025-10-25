@@ -40,7 +40,7 @@ def get_single_aria_prediction(aria_name: str, dataset_path: str, model_path: st
     audio = torch.Tensor(audio)[None, :]
 
     # Load phoneme2idx map
-    with open('/nethome/pjajoria/Github/lyrics-aligner/files/phoneme2idx.pickle', 'rb') as f:
+    with open('/nethome/unknown_user/Github/lyrics-aligner/files/phoneme2idx.pickle', 'rb') as f:
         phoneme2idx = pickle.load(f)
 
     phonemes_idx = [phoneme2idx[ph] for ph in phonemes]
@@ -117,9 +117,9 @@ def plot_alignment_scatter(aria_name: str, dataset_path: str, predictions_dir: s
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Plot scatter plot comparing predicted vs ground-truth word onsets.")
     parser.add_argument("--aria_name", type=str, required=True, help="Name of the aria to visualize.")
-    parser.add_argument("--dataset_path", type=str, default="/nethome/pjajoria/Github/lyrics-aligner/dataset/Aria_Dataset")
-    parser.add_argument("--predictions_dir", type=str, default="/nethome/pjajoria/Github/lyrics-aligner/results/schufo/word_onsets")
-    parser.add_argument("--out_path", type=str, default="/nethome/pjajoria/Github/lyrics-aligner/results/plots/scatter_plots")
+    parser.add_argument("--dataset_path", type=str, default="/nethome/unknown_user/Github/lyrics-aligner/dataset/Aria_Dataset")
+    parser.add_argument("--predictions_dir", type=str, default="/nethome/unknown_user/Github/lyrics-aligner/results/schufo/word_onsets")
+    parser.add_argument("--out_path", type=str, default="/nethome/unknown_user/Github/lyrics-aligner/results/plots/scatter_plots")
     parser.add_argument("--model_path", type=str, default=None, help="Path to model checkpoint. If provided, run inference.")
     args = parser.parse_args()
 
@@ -132,5 +132,5 @@ if __name__ == "__main__":
     )
 
 """
-python plot_alignment_scatter.py --aria_name Norma_Casta_Diva --model_path /nethome/pjajoria/Github/lyrics-aligner/checkpoint/big_testset_0210_1529/model_final.pth --out_path /nethome/pjajoria/Github/lyrics-aligner/results/plots
+python plot_alignment_scatter.py --aria_name Norma_Casta_Diva --model_path /nethome/unknown_user/Github/lyrics-aligner/checkpoint/big_testset_0210_1529/model_final.pth --out_path /nethome/unknown_user/Github/lyrics-aligner/results/plots
 """
