@@ -5,7 +5,6 @@
 
 # Audio–Lyrics Alignment for Italian Opera Arias
 
-> [!WARNING]
 > **Annotations are now available on Hugging Face.** The Aria audio downloader is still in progress — keep an eye out for the update.
 
 Companion repository for *Audio–Lyrics Alignment Dataset for Italian Arias*, accepted at **LREC 2026** (Palma de Mallorca).
