@@ -5,6 +5,9 @@
 
 # Audio–Lyrics Alignment for Italian Opera Arias
 
+> [!WARNING]
+> **Annotations are now available on Hugging Face.** The Aria audio downloader is still in progress — keep an eye out for the update.
+
 Companion repository for *Audio–Lyrics Alignment Dataset for Italian Arias*, accepted at **LREC 2026** (Palma de Mallorca).
 
 We release the **first audio–lyrics alignment dataset for Italian opera arias** — 24 arias from Handel to Puccini (~1h 53m), hand-annotated with **word-level timestamps** and per-word ARPAbet phoneme strings. We benchmark five state-of-the-art alignment systems on it and run a few-shot adaptation experiment. **Existing systems take a ~44% PCO hit moving from pop to opera, and few-shot fine-tuning helps locally but not globally.** See the [paper](#citation) for the full story.
@@ -33,7 +36,7 @@ We release the **first audio–lyrics alignment dataset for Italian opera arias*
 
 Each word is timestamped (start/end in seconds) and given an ARPAbet string (Italian variant from Arango et al., 2021), produced via an extended Italian SPARSAR pipeline (Delmonte, 2019) that handles archaic, apocopated, and contracted forms common in operatic Italian.
 
-**Sample** — Bellini, *I puritani* (*Suoni la tromba*), from [`publication/word_align_csv/Bellini_Puritani_Suoni_la_tromba.csv`](publication/word_align_csv/Bellini_Puritani_Suoni_la_tromba.csv):
+**Sample** — Bellini, *I puritani* (*Suoni la tromba*):
 
 | Word | Start (s) | End (s) | ARPAbet |
 |---|---:|---:|---|
@@ -42,6 +45,8 @@ Each word is timestamped (start/end in seconds) and given an ARPAbet string (Ita
 | tromba | 3.47 | 4.04 | T R AO M B AA |
 | intrepido | 4.34 | 5.94 | IY N T R EH P IY D OW |
 | pugnerò | 6.74 | 7.53 | P UW N Y EY R OW |
+
+Annotations (per-aria CSVs with `word`, `start_time`, `end_time`, `phonemes`) are available on [Hugging Face](https://huggingface.co/datasets/REPLACE_WITH_YOUR_ORG_AND_NAME). Audio is not redistributed — it is third-party content and must be sourced separately.
 
 ---
 
@@ -73,16 +78,9 @@ Fine-tuning PLLA on a 17/7 train/test split (5 folds, 15 epochs, LR 1e-5) with p
 
 ---
 
-## Getting the data
+## Reproducing the paper
 
-**Annotations** ship on [Hugging Face](https://huggingface.co/datasets/REPLACE_WITH_YOUR_ORG_AND_NAME) — per-aria CSVs (`word`, `start_time`, `end_time`, `phonemes`), `youtube_sources.tsv`, and helper scripts. **Audio is not redistributed** (third-party content); fetch it yourself:
-
-```bash
-python scripts/download_youtube_audio.py        # interactive consent
-python scripts/verify_youtube_audio.py          # duration + chroma cosine check
-```
-
-The expected local tree:
+The expected local tree (once you have audio):
 
 ```text
 dataset/Aria_Dataset/
@@ -94,10 +92,6 @@ dataset/Aria_Dataset/
 ```
 
 > ⚠️ Several aria folders contain spaces (e.g. `Norma_Casta Diva`). Preserve them verbatim — loaders match on exact names.
-
----
-
-## Reproducing the paper
 
 ```bash
 # Environment
@@ -122,13 +116,17 @@ Frozen per-aria metric pickles are committed under `benchmarks/results/` so the 
 
 | Path | Purpose |
 |---|---|
-| `benchmarks/` | Benchmark drivers, frozen results, [README](benchmarks/README.md) with per-script mapping |
-| `scripts/` | CSV export, YouTube download/verify, HF bundle builder |
+| `benchmarks/` | Benchmark drivers and frozen results — [README](benchmarks/README.md) |
 | `train.py`, `model.py`, `align.py`, `datahandler.py` | Few-shot training and PLLA inference |
-| `evaluate_helper.py`, `data_augmentation.py`, `repo_paths.py` | Metrics, augmentation, portable paths |
-| `publication/`, `hf_dataset_bundle/` | Word-level CSVs and HF upload bundle |
-| `metadata/` | YouTube source mapping and validation reports |
+| `evaluate_helper.py`, `eval_model.py` | Metrics (RMSE / MAE / MedAE / PCO@0.3) and model evaluation |
+| `data_augmentation.py`, `repo_paths.py` | Augmentation stack and portable paths |
+| `make_word_list.py`, `make_word2phoneme_dict.py`, `create_global_w2phdict.py`, `fix_w2ph.py` | Lexicon construction and repair |
+| `box_plot.py`, `scatter_plot.py`, `overlaid_bar_plot.py`, `grouped_bar_plot.py`, `symbol_plot.py`, `plot_best_worst_alignment.py` | Plots used in the paper |
+| `whisperx/` | Local WhisperX experiments |
+| `publication/`, `hf_dataset_bundle/` | Word-level CSV exports and HF upload bundle |
+| `scripts/`, `metadata/` | Dataset preparation helpers |
 | `tests/` | Lyrics ↔ labels consistency check |
+| `files/`, `checkpoint/`, `images/` | Phoneme index, baseline weights, figures/logos |
 
 This repo is a fork of [schufo/lyrics-aligner](https://github.com/schufo/lyrics-aligner) (Schulze-Forster et al., 2021). The core alignment model is upstream; the dataset, training pipeline, benchmark suite, and publication tooling are new.
 
@@ -163,30 +161,4 @@ Pushkar Jajoria was funded by the **DFG** — Project-ID 232722074 — SFB 1102.
 
 ## License
 
-Code: [MIT](LICENSE). Annotations: see the Hugging Face dataset card. Audio: not redistributed — see `publication/THIRD_PARTY_AUDIO_NOTICE.md`.
-
----
-
-<details>
-<summary>Maintainer notes</summary>
-
-**Release a new dataset version on Hugging Face:**
-
-```bash
-python scripts/export_aria_word_csvs.py --yes
-python scripts/build_hf_dataset_bundle.py
-huggingface-cli upload YOUR_ORG/YOUR_DATASET_NAME hf_dataset_bundle . --repo-type dataset
-```
-
-Then update the badge URL at the top.
-
-**Regenerate the YouTube source mapping from the working DOCX:**
-
-```bash
-python scripts/ingest_youtube_docx.py --docx "/path/to/0Arie_Music alignment Nov 2023.docx"
-python scripts/validate_youtube_aria_mapping.py --write-report metadata/YOUTUBE_VALIDATION_REPORT.md
-```
-
-One historical DOC row ("La vendetta") does not correspond to any of the 24 LREC arias and is flagged in the report.
-
-</details>
+Code: [MIT](LICENSE). Annotations: see the Hugging Face dataset card.
