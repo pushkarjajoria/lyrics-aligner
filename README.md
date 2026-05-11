@@ -1,10 +1,11 @@
 <!-- Badges -->
 [![LREC 2026](https://img.shields.io/badge/LREC-2026%20accepted-2ea44f)](https://lrec2026.lrec-conf.org/)
-[![Hugging Face Dataset](https://img.shields.io/badge/🤗%20Hugging%20Face-Dataset-yellow)](https://huggingface.co/datasets/REPLACE_WITH_YOUR_ORG_AND_NAME)
+[![Hugging Face Dataset](https://img.shields.io/badge/🤗%20Hugging%20Face-Dataset-yellow)](https://huggingface.co/datasets/pushkarjajoria/aria-dataset)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 # Audio–Lyrics Alignment for Italian Opera Arias
 
+> [!WARNING]
 > **Annotations are now available on Hugging Face.** The Aria audio downloader is still in progress — keep an eye out for the update.
 
 Companion repository for *Audio–Lyrics Alignment Dataset for Italian Arias*, accepted at **LREC 2026** (Palma de Mallorca).
@@ -45,7 +46,7 @@ Each word is timestamped (start/end in seconds) and given an ARPAbet string (Ita
 | intrepido | 4.34 | 5.94 | IY N T R EH P IY D OW |
 | pugnerò | 6.74 | 7.53 | P UW N Y EY R OW |
 
-Annotations (per-aria CSVs with `word`, `start_time`, `end_time`, `phonemes`) are available on [Hugging Face](https://huggingface.co/datasets/REPLACE_WITH_YOUR_ORG_AND_NAME). Audio is not redistributed — it is third-party content and must be sourced separately.
+Annotations (per-aria CSVs with `word`, `start_time`, `end_time`, `phonemes`) are available on [Hugging Face](https://huggingface.co/datasets/pushkarjajoria/aria-dataset). Audio is not redistributed — it is third-party content and must be sourced separately.
 
 ---
 
@@ -89,8 +90,6 @@ dataset/Aria_Dataset/
 │   └── labels.tsv            # Text, Start Time, End Time
 └── word2phonemes.pickle
 ```
-
-> ⚠️ Several aria folders contain spaces (e.g. `Norma_Casta Diva`). Preserve them verbatim — loaders match on exact names.
 
 ```bash
 # Environment
