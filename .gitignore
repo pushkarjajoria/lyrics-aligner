@@ -3,6 +3,7 @@
 data/
 dataset/
 checkpoint/
+.cursor/
 runs/
 wandb/
 OSU/
