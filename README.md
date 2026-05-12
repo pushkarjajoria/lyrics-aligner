@@ -5,12 +5,11 @@
 
 # Audio–Lyrics Alignment for Italian Opera Arias
 
-> [!WARNING]
 > **Annotations are now available on Hugging Face.** The Aria audio downloader is still in progress — keep an eye out for the update.
 
 Companion repository for *Audio–Lyrics Alignment Dataset for Italian Arias*, accepted at **LREC 2026** (Palma de Mallorca).
 
-We release the **first audio–lyrics alignment dataset for Italian opera arias** — 24 arias from Handel to Puccini (~1h 53m), hand-annotated with **word-level timestamps** and per-word ARPAbet phoneme strings. We benchmark five state-of-the-art alignment systems on it and run a few-shot adaptation experiment. **Existing systems take a ~44% PCO hit moving from pop to opera, and few-shot fine-tuning helps locally but not globally.** See the [paper](#citation) for the full story.
+We release the **first audio–lyrics alignment dataset for Italian opera arias** — 24 arias from Handel to Puccini (~1h 53m), hand-annotated with **word-level timestamps** and per-word ARPAbet phoneme strings. We benchmark five state-of-the-art alignment systems on it and run a few-shot adaptation experiment. **Existing systems take a ~44% PCO hit moving from pop to opera, and few-shot fine-tuning helps locally but not globally.** See the [paper](https://www.lsv.uni-saarland.de/wp-content/uploads/2026/04/LREC_2026_Audio_Lyrics_Alignment-11.pdf) for the full story.
 
 <p align="center">
   <img src="images/Logo-Universität_des_Saarlandes.svg.png" height="56" alt="Universität des Saarlandes">&nbsp;&nbsp;
@@ -95,13 +94,6 @@ dataset/Aria_Dataset/
 # Environment
 conda env create -f environment_gpu.yml   # or environment_cpu.yml
 
-# Benchmarks (Table 4) — see benchmarks/README.md for the per-script mapping
-python -m benchmarks.benchmark_schufo
-python -m benchmarks.benchmark_whisperx
-python -m benchmarks.benchmark_gc
-python -m benchmarks.benchmark_HBE
-python -m benchmarks.benchmark_forced_aligner    # needs ctc_forced_aligner
-
 # Few-shot fine-tuning (Table 5)
 python train.py --dataset_path dataset/Aria_Dataset --epochs 15
 ```
@@ -133,7 +125,7 @@ This repo is a fork of [schufo/lyrics-aligner](https://github.com/schufo/lyrics-
 ## Citation
 
 ```bibtex
-@inproceedings{jajoria_2026_audio,
+@inproceedings{jajoria_2026_alignment,
   author    = {Jajoria, Pushkar and Graciotti, Arianna and Casali, Giovanna and
                Alabi, Jesujoba O. and Delmonte, Rodolfo and Pompilio, Angelo and
                Tripodi, Rocco and McDermott, James and Klakow, Dietrich},
@@ -156,7 +148,3 @@ If you use the underlying alignment model, please also cite Schulze-Forster et a
 Pushkar Jajoria was funded by the **DFG** — Project-ID 232722074 — SFB 1102. This work was also supported by the **Polifonia Project** (EU Horizon 2020, grant 101004746). Thanks to Badr M. Abdullah, Aravind Krishnan, Janaki Viswanathan, and the **LSV Lab at Saarland University**. Built on [schufo/lyrics-aligner](https://github.com/schufo/lyrics-aligner).
 
 ---
-
-## License
-
-Code: [MIT](LICENSE). Annotations: see the Hugging Face dataset card.
