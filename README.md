@@ -125,17 +125,18 @@ This repo is a fork of [schufo/lyrics-aligner](https://github.com/schufo/lyrics-
 ## Citation
 
 ```bibtex
-@inproceedings{jajoria_2026_alignment,
-  author    = {Jajoria, Pushkar and Graciotti, Arianna and Casali, Giovanna and
-               Alabi, Jesujoba O. and Delmonte, Rodolfo and Pompilio, Angelo and
-               Tripodi, Rocco and McDermott, James and Klakow, Dietrich},
-  title     = {Audio-Lyrics Alignment Dataset for Italian Arias},
-  booktitle = {Proceedings of the 15th Language Resources and Evaluation
-               Conference (LREC 2026)},
-  year      = {2026},
-  publisher = {ELRA Language Resources Association},
-  address   = {Palma de Mallorca, Spain},
-  month     = may,
+@inproceedings{jajoria-etal-2026-audio,
+  title = {Audio-Lyrics Alignment Dataset for Italian Arias},
+  author = {Jajoria, Pushkar and Graciotti, Arianna and Casali, Giovanna and Alabi, Jesujoba and Delmonte, Rodolfo and Pompilio, Angelo and Tripodi, Rocco and McDermott, James and Klakow, Dietrich},
+  booktitle = {Proceedings of the Fifteenth Language Resources and Evaluation Conference (LREC 2026)},
+  month = {May},
+  year = {2026},
+  pages = {5757--5766},
+  address = {Palma, Mallorca, Spain},
+  publisher = {European Language Resources Association (ELRA)},
+  editor = {Piperidis, Stelios and Bel, Núria and van den Heuvel, Henk and Ide, Nancy and Krek, Simon and Toral, Antonio},
+  doi = {10.63317/4cpveetxxtmx},
+  abstract = {Aligning song lyrics with sung audio is challenging, especially for languages and music styles where annotated datasets are scarce. We address this gap by presenting the first dataset of Italian opera arias annotated with lyrics and time-stamps per word. The dataset comprises of 24 arias drawn from well-known operas of the 18th to 20th centuries with a total audio duration of nearly two hours. We benchmark both music alignment models and speech forced alignment models and show that existing methods face significant challenges on this dataset, with performance dropping by 45% compared to other datasets. Multilingual and speech-based models exhibit relatively better performance on this dataset. We also evaluate few-shot fine-tuning of these models on the new dataset and find that, while it yields only marginal overall improvement, it produces localized gains on specific arias, suggesting that limited exposure helps the model adapt to some patterns but cannot fully overcome differences in language or musical style.}
 }
 ```
 
